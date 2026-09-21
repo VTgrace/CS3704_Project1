@@ -8,9 +8,10 @@ See hokie-scheduler/package.json
 # Setup
 
 1. Clone repository
-2. Change directory into hokie-scheduler ```cd hokie-scheduler```
-3. Start local version ```npm run dev```
-4. Navigate to [http://localhost:5173/](http://localhost:5173/)
+2. Change directory into hokie-scheduler: ```cd hokie-scheduler```
+3. Install dependecies: ```npm ci```
+4. Start local version: ```npm run dev```
+5. Navigate to: [http://localhost:5173/](http://localhost:5173/)
 
 # Authors
 Ayesha Saiyed (ayesha0@vt.edu)  
