@@ -8,10 +8,11 @@ See hokie-scheduler/package.json
 # Setup
 
 1. Clone repository
-2. Change directory into hokie-scheduler ```cd hokie-scheduler```
-3. Install dependencies with `npm ci`. Optionally copy `hokie-scheduler/.env.example` to `.env` in that directory and configure server-side integrations.
-4. Start frontend and backend with `npm run dev`.
-5. Navigate to [http://localhost:5173/](http://localhost:5173/)
+2. Change directory into hokie-scheduler: `cd hokie-scheduler`
+3. Install dependencies: `npm ci`
+4. Create private configuration with `npm run setup`; configure optional service credentials in `.env`. Run `npm run doctor` to check integration availability.
+5. Start frontend and backend: `npm run dev`
+6. Navigate to: [http://localhost:5173/](http://localhost:5173/) (or the port printed by Vite).
 
 # Authors
 Ayesha Saiyed (ayesha0@vt.edu)  
