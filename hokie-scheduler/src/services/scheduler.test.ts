@@ -1,11 +1,7 @@
+import { mockRecommendCourses } from "./mockScheduler";
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  conflicts,
-  filterCourses,
-  occursOn,
-  recommendCourses,
-} from "./scheduler";
+import { conflicts, filterCourses, occursOn } from "./scheduler";
 import {
   baseEvents,
   courses,
@@ -43,7 +39,7 @@ test("filters combine rather than ignore constraints", () => {
   );
 });
 test("prompt recommendations respect existing commitments", async () => {
-  const result = await recommendCourses({
+  const result = await mockRecommendCourses({
     prompt: "A 3 credit class on Fridays",
     filters: defaultFilters,
     events: [...baseEvents, ...personalEvents],
@@ -52,7 +48,7 @@ test("prompt recommendations respect existing commitments", async () => {
     result.courses.map((c) => c.id),
     ["ENGL 3764"],
   );
-  const blocked = await recommendCourses({
+  const blocked = await mockRecommendCourses({
     prompt: "CS electives",
     filters: defaultFilters,
     events: [...baseEvents, ...personalEvents, courses[0].meeting],

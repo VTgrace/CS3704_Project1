@@ -1763,5 +1763,107 @@ small {
   }
 }
 /* Keep short class blocks readable at every calendar width. */
-.calendar-event:not(.compact){min-height:45px}
-.calendar-event:not(.compact) span{white-space:nowrap}
+.calendar-event:not(.compact) {
+  min-height: 45px;
+}
+.calendar-event:not(.compact) span {
+  white-space: nowrap;
+}
+/* Source-backed conversation stays separate from the illustrative calendar. */
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+.chat-history article {
+  display: grid;
+  gap: 8px;
+}
+.chat-user {
+  justify-self: end;
+  background: var(--accent);
+  color: var(--surface);
+  padding: 10px 14px;
+  border-radius: 12px 12px 2px 12px;
+  max-width: 90%;
+  font-size: 12px;
+}
+.chat-answer {
+  background: var(--surface);
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 3px 12px 12px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.response-mode {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 7px;
+}
+.chat-course {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 12px;
+}
+.chat-course > p {
+  color: var(--muted);
+  margin-top: 5px;
+}
+.source-citations {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.source-citations summary,
+.source-availability summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+.source-citations ol {
+  margin: 8px 0;
+  padding-left: 19px;
+}
+.source-citations li {
+  margin-bottom: 10px;
+}
+.source-citations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.source-citations small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.source-citations li p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.evidence-notes {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  padding-left: 17px;
+  margin-top: 12px;
+}
+.source-availability {
+  font-size: 10px;
+  margin-top: 12px;
+}
+.source-availability p {
+  margin-top: 8px;
+  color: var(--muted);
+}

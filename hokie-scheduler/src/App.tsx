@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { ChatHistory } from "./components/ChatHistory";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Check, Search, SlidersHorizontal } from "lucide-react";
 import { Header } from "./components/Header";
 import { FilterSidebar } from "./components/FilterSidebar";
@@ -29,6 +30,7 @@ import {
 } from "./services/scheduler";
 import type {
   Course,
+  ChatTurn,
   Filters,
   Page,
   ScheduleEvent,
@@ -40,10 +42,12 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [drawer, setDrawer] = useState(false);
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const requestVersion = useRef(0);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [results, setResults] = useState<Course[]>(courses);
+  const [results, setResults] = useState<Course[]>([]);
   const [events, setEvents] = useState<ScheduleEvent[]>([
     ...baseEvents,
     ...personalEvents,
@@ -60,7 +64,7 @@ export default function App() {
   );
   const [toast, setToast] = useState("");
   const [search, setSearch] = useState("");
-  const [reason, setReason] = useState<Course | undefined>(courses[0]);
+  const [reason, setReason] = useState<Course | undefined>();
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
@@ -76,7 +80,7 @@ export default function App() {
         .map((c) => ({
           ...c,
           tags: c.tags.map((tag) =>
-            tag === "Fits Schedule" &&
+            (tag === "Fits Schedule" || tag === "No time overlap") &&
             events.some((e) => conflicts(e, c.meeting))
               ? "Time Conflict"
               : tag,
@@ -84,40 +88,61 @@ export default function App() {
         })),
     [results, filters, events],
   );
-  const catalog = filterCourses(courses, filters).filter((c) =>
+  const catalog = filterCourses(results, filters).filter((c) =>
     `${c.id} ${c.name}`.toLowerCase().includes(search.toLowerCase()),
   );
   const changeFilter = (key: keyof Filters, value: string) => {
     setFilters((previous) => ({ ...previous, [key]: value }));
-    setResults(courses);
+    requestVersion.current++;
+    setResults([]);
+    setReason(undefined);
     setMessage("");
     if (key === "semester") {
       setDate(
         value === "Spring 2027" ? new Date(2027, 0, 18) : new Date(2026, 7, 24),
       );
-      setToast("Showing the same illustrative sections for this semester.");
+      setToast(
+        "Term changed. Submit your request to retrieve sections for this term.",
+      );
     }
   };
   const reset = () => {
     setFilters(defaultFilters);
-    setResults(courses);
+    requestVersion.current++;
+    setResults([]);
+    setReason(undefined);
     setMessage("");
     setDate(new Date(2026, 7, 24));
   };
   const submit = async () => {
     if (!query.trim() || loading) return;
+    const version = ++requestVersion.current;
     setLoading(true);
     try {
       const response = await recommendCourses({
         prompt: query,
         filters,
         events,
+        history: turns.slice(-4).flatMap((turn) => [
+          { role: "user" as const, content: turn.prompt },
+          { role: "assistant" as const, content: turn.response.explanation },
+        ]),
       });
+      if (version !== requestVersion.current) return;
+      setTurns((previous) => [
+        ...previous.slice(-3),
+        { prompt: query, response },
+      ]);
       setResults(response.courses);
       setReason(response.courses[0]);
       setMessage(response.explanation);
-    } catch {
-      setMessage("We couldn’t find courses right now. Please try again.");
+    } catch (error) {
+      if (version !== requestVersion.current) return;
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not reach the backend. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -127,6 +152,12 @@ export default function App() {
     setReason(course);
   };
   const addCourse = (course: Course) => {
+    if (course.scheduleVerified === false) {
+      setToast(
+        "Meeting times are unverified; check the official timetable first.",
+      );
+      return;
+    }
     if (
       events.some(
         (e) => e.courseId === course.id || conflicts(e, course.meeting),
@@ -135,6 +166,7 @@ export default function App() {
       setToast("That section is already added or overlaps with an event.");
       return;
     }
+    requestVersion.current++;
     setEvents((previous) => [...previous, course.meeting]);
     setSelectedOption(null);
     setSelectedCourse(null);
@@ -154,13 +186,15 @@ export default function App() {
       );
       return;
     }
+    requestVersion.current++;
     setEvents([...proposed, ...personal]);
     setSelectedOption(id);
-    setReason(extra);
+    setReason(undefined);
     setToast(`${option.title} is now on your calendar. Personal events kept.`);
     setPage("Dashboard");
   };
   const saveEvent = (event: ScheduleEvent) => {
+    requestVersion.current++;
     setEvents((previous) => [...previous, event]);
     setDate(new Date(event.date + "T12:00:00"));
     if (event.days[0] === 0 || event.days[0] === 6) setView("Day");
@@ -200,6 +234,7 @@ export default function App() {
             loading={loading}
             message={message}
           />
+          <ChatHistory turns={turns} />
           {page === "Explore Courses" ? (
             <section className="panel explore">
               <div className="section-heading">
@@ -221,7 +256,7 @@ export default function App() {
                 />
               </label>
               <p className="muted catalog-count">
-                {catalog.length} sample courses · {filters.semester}
+                {catalog.length} retrieved courses · {filters.semester}
               </p>
               <div className="catalog-grid">
                 {catalog.map((c) => (
@@ -238,8 +273,9 @@ export default function App() {
                 </div>
               )}
               <p className="demo-disclaimer">
-                Course information and professor ratings are illustrative demo
-                data.
+                Submit a scheduling request to retrieve courses and their
+                sources. Ratings appear only when matching review evidence is
+                available.
               </p>
             </section>
           ) : page === "Compare Schedules" ? (
@@ -320,7 +356,9 @@ export default function App() {
             <AIReasoningCard course={reason} />
           </section>
           <p className="sidebar-footnote">
-            <span />A little planning. A lot more possibility.
+            <span />
+            Calendar starts with demo events. Course recommendations use
+            retrieved sources.
           </p>
         </aside>
       </main>

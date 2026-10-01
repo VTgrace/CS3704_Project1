@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 *.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+server/data/

@@ -1,4 +1,3 @@
-import { courses } from "../data/mockData";
 import type {
   Course,
   Filters,
@@ -30,7 +29,8 @@ export function filterCourses(source: Course[], filters: Filters): Course[] {
       (filters.difficulty === "Any" ||
         course.difficulty === filters.difficulty) &&
       (filters.rating === "Any" ||
-        course.rating >= parseFloat(filters.rating)) &&
+        (course.rating !== null &&
+          course.rating >= parseFloat(filters.rating))) &&
       (filters.credits === "Any" ||
         course.credits === Number(filters.credits)) &&
       (filters.modality === "Any" || course.modality === filters.modality) &&
@@ -42,37 +42,24 @@ export function filterCourses(source: Course[], filters: Filters): Course[] {
             : course.meeting.start >= 1020)),
   );
 }
-// Replace this adapter with a real HTTP request; the UI consumes the same response shape.
-export async function recommendCourses({
-  prompt,
-  filters,
-  events,
-}: RecommendationRequest): Promise<RecommendationResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 850));
-  const query = prompt.toLowerCase();
-  let matches = filterCourses(courses, filters).filter(
-    (course) =>
-      !events.some(
-        (event) =>
-          event.courseId === course.id || conflicts(course.meeting, event),
-      ),
-  );
-  if (query.includes("easy"))
-    matches = matches.filter((c) => c.difficulty === "Easy");
-  if (query.includes("gen ed"))
-    matches = matches.filter((c) => c.major === "General Education");
-  if (query.includes("cs elective"))
-    matches = matches.filter((c) => c.major === "Computer Science");
-  if (query.includes("friday"))
-    matches = matches.filter((c) => c.meeting.days.includes(5));
-  if (query.includes("3 credit"))
-    matches = matches.filter((c) => c.credits === 3);
-  return {
-    courses: matches,
-    explanation: matches.length
-      ? `Found ${matches.length} sample ${matches.length === 1 ? "course" : "courses"} that fit your request, filters, and current commitments.`
-      : "No sample courses match all your preferences. Try a broader request or reset your filters.",
-  };
+// Same-origin API: secrets and source retrieval remain on the backend.
+export async function recommendCourses(
+  request: RecommendationRequest,
+): Promise<RecommendationResponse> {
+  const response = await fetch("/api/recommendations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(65000),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error ||
+        "The recommendation service is unavailable. Start the app with npm run dev.",
+    );
+  }
+  return response.json();
 }
 export function formatTime(minutes: number): string {
   const h = Math.floor(minutes / 60);

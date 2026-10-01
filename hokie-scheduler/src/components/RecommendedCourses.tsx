@@ -1,3 +1,4 @@
+import { SourceCitations } from "./SourceCitations";
 import {
   ArrowRight,
   BookOpen,
@@ -96,8 +97,9 @@ export function AIReasoningCard({ course }: { course: Course | undefined }) {
         <h3>Why this course?</h3>
         <p>
           {course?.reason ??
-            "Tell us what matters to you. We’ll look for sample courses that work with your preferences and commitments."}
+            "Tell us what matters to you. We’ll look for sourced courses that work with your preferences and commitments."}
         </p>
+        <SourceCitations citations={course?.citations ?? []} />
       </div>
     </div>
   );
@@ -113,6 +115,7 @@ export function CourseDetailsModal({
   onClose: () => void;
   onAdd: (course: Course) => void;
 }) {
+  const unverified = course.scheduleVerified === false;
   const added = events.some((e) => e.courseId === course.id);
   const conflict = events.find((e) => conflicts(e, course.meeting));
   return (
@@ -150,9 +153,12 @@ export function CourseDetailsModal({
           <dd>{course.professor}</dd>
         </div>
         <div>
-          <dt>Sample student rating</dt>
+          <dt>Student review rating</dt>
           <dd>
-            <Star size={15} className="star" /> {course.rating} / 5
+            <Star size={15} className="star" />{" "}
+            {course.rating === null
+              ? "Not enough evidence"
+              : `${course.rating} / 5`}
           </dd>
         </div>
         <div>
@@ -166,8 +172,9 @@ export function CourseDetailsModal({
       </dl>
       <AIReasoningCard course={course} />
       <p className="demo-disclaimer">
-        Demo data: sections, instructors, ratings, and availability are
-        illustrative.
+        {course.citations?.length
+          ? "Check cited section details, prerequisites, and available seats before enrolling."
+          : "These are illustrative demo sections."}
       </p>
       {conflict && !added && (
         <p className="form-error" role="status">
@@ -175,20 +182,33 @@ export function CourseDetailsModal({
           schedule.
         </p>
       )}
+      {course.sectionId && (
+        <p className="demo-disclaimer">
+          CRN {course.sectionId} · {course.semester}
+        </p>
+      )}
+      {course.restrictions && (
+        <p className="evidence-notes">
+          <strong>Section restrictions:</strong> {course.restrictions}
+        </p>
+      )}
+      <SourceCitations citations={course.citations ?? []} />
       <div className="modal-footer">
         <button className="secondary" onClick={onClose}>
           Close
         </button>
         <button
           className="primary"
-          disabled={added || !!conflict}
+          disabled={added || !!conflict || unverified}
           onClick={() => onAdd(course)}
         >
-          {added
-            ? "Already in your schedule"
-            : conflict
-              ? "Schedule conflict"
-              : "Add to Schedule"}
+          {unverified
+            ? "Meeting times unverified"
+            : added
+              ? "Already in your schedule"
+              : conflict
+                ? "Schedule conflict"
+                : "Add to Schedule"}
         </button>
       </div>
     </Modal>

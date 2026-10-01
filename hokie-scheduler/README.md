@@ -36,10 +36,14 @@ Use prompt chips or enter a request; click the arrow to simulate recommendations
 
 Course details include mock meeting information, professor rating, workload, and reasoning. Adding courses checks overlaps and duplicate enrollment. Personal events are dated and support weekends through Day view. Existing class and personal blocks repeat weekly. Comparison presets replace classes while preserving personal events and refuse conflicting presets. Click calendar events to inspect or remove them.
 
-## Integration notes and limitations
+## Backend and source-backed recommendations
+
+The chat now calls a local Express API. Run `npm run setup` to create private configuration, `npm run doctor` to check integrations, and `npm run dev` to start both frontend and backend. Official VT timetable retrieval works without a key; optional LLM, Reddit, and permitted professor-review data are configured server-side in `.env`. See [Backend setup and source status](server/README.md).
+
+## Original frontend demo notes
 
 The prototype is integrated into the existing `hokie-scheduler` React/Vite application. Existing React and Vite dependency ranges are preserved, with TypeScript, Tailwind, and scheduling components added.
 
-`recommendCourses(request)` is the replaceable asynchronous integration boundary; swap its mock implementation for an HTTP request returning `RecommendationResponse`. Course and schedule contracts are kept separate from visual components for eventual catalog/LLM integration. No authentication, database, scraping, Reddit, or professor-rating service is connected.
+`recommendCourses(request)` calls `/api/recommendations`. Course and schedule contracts are kept separate from visual components for eventual catalog/LLM integration. The backend adds VT retrieval, citations, conflict checks, and optional LLM/Reddit adapters; there is no authentication or database.
 
-All course sections, instructors, ratings, estimated workloads, and term availability are illustrative. Semester selection reuses sample sections. Comparison totals follow the requested 12/15-credit demo presets, not a live catalog audit. Free afternoons refer to classes only. State is held in memory and resets on reload. Personal events may overlap; recommended course additions and comparison changes check commitments. Personal event entry is limited to 8 AM–8 PM. The mock adapter recognizes the example intents rather than unrestricted natural language.
+Initial calendar events and comparison presets are illustrative. Chat recommendations come from retrieved sources; unknown ratings and workload remain unknown. Comparison totals follow the requested 12/15-credit demo presets, not a live catalog audit. Free afternoons refer to classes only. State is held in memory and resets on reload. Personal events may overlap; recommended course additions and comparison changes check commitments. Personal event entry is limited to 8 AM–8 PM. The backend uses deterministic matches when LLM credentials are absent.
