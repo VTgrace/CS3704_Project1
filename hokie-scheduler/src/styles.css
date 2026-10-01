@@ -1867,3 +1867,14 @@ small {
   margin-top: 8px;
   color: var(--muted);
 }
+
+.major-resources { margin: 22px 0; padding: 14px; border: 1px solid var(--border, #ddd); border-radius: 12px; font-size: 12px; line-height: 1.5; }
+.major-resources summary { cursor: pointer; font-weight: 700; }
+.major-resources label { display: block; margin: 12px 0; }
+.major-resources input, .major-resources select { display: block; width: 100%; min-width: 0; margin-top: 6px; padding: 8px; border: 1px solid #aaa; border-radius: 6px; background: transparent; color: inherit; }
+.major-resources a { color: inherit; text-decoration: underline; }
+.degree-checker { border-top: 1px solid #aaa; margin-top: 16px; padding-top: 10px; }
+.degree-checker textarea { display: block; width: 100%; margin: 8px 0; padding: 8px; border: 1px solid #aaa; border-radius: 6px; background: transparent; color: inherit; }
+.degree-checker ul { padding-left: 18px; }
+.degree-checker li { margin: 10px 0; }
+.degree-checker button { padding: 8px; border-radius: 6px; border: 1px solid #aaa; }

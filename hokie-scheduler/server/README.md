@@ -130,3 +130,21 @@ Run `npm run setup` once to create a private `.env` without overwriting existing
 If live catalog access remains unavailable, `VT_CATALOG_IMPORT_FILE` accepts a JSON array of dated official exports with fields `courseId`, `name`, `credits`, `description`, `url`, and `retrievedAt`. Only HTTPS `catalog.vt.edu/undergraduate/` URLs and snapshots younger than one year are accepted. Snapshot citations retain their actual retrieval date and are labeled as snapshots, never live. They add descriptions but cannot establish current semester meeting times.
 
 OpenAI API usage is billed separately from ChatGPT. Reddit has free and paid access subject to its approval and use conditions. This project creates its own API; it cannot issue external service credentials or grant source access. Without these credentials, real VT timetable matching remains usable and source gaps are disclosed.
+
+### No-key VT evidence and major resources
+
+`GET /api/programs` retrieves VT Registrar's alphabetic **legacy** major/option directory, preserving the exact year labels and official PDF links. It is cached for 24 hours and fails closed if the source layout changes. The UI exposes it under Filters → Major roadmaps & requirements. Current and previous catalog links are separate; this directory is not asserted to be a complete current major list.
+
+Students can record their own degree program and catalog year. These fields accompany recommendation requests and select matching reviewed rules where available. The app does **not** automatically parse checksheet PDFs or current roadmaps or infer required/elective status from a course merely appearing on a page. It checks only explicitly reviewed rules, as described below. The current catalog has returned a robot challenge during integration checks. No challenge bypass is implemented.
+
+For CS searches, the backend also retrieves the public CS department course-information page. It uses explicitly listed course numbers and full names to improve text matching and adds `vt-department` citations. This is not a review source, a prerequisite solver, or proof of a degree requirement. Live timetable data remains necessary for section recommendations. Day exclusions, combined start/end bounds, and explicitly requested course numbers are enforced before ranking.
+
+### Degree checker (partial rule coverage)
+
+`GET /api/degree-plans` lists the exact program/year combinations and rule counts currently loaded. `POST /api/degree-audit` accepts `{ planId, catalogYear, attempts: [{ courseId: "CS 1114", grade: "A" }] }`. Mismatched years return 404; no nearest-year fallback occurs. Grades remain in the local backend and are not sent to OpenAI.
+
+The initial reviewed dataset is **Computer Science, 2023–2024: 25 rules** from the CS department's six-page official checksheet, covering selected core courses/substitutions and five elective groups. It does not cover all majors/years or certify graduation. Credits, GPA, Pathways, general electives, transfer equivalencies, and policy exceptions remain manual. `P` and `T` entries require review, `IP` is in progress, and overlapping requirement allocations are flagged rather than double-counted. Recommendations gain year-specific requirement citations when a matching reviewed plan exists.
+
+To extend any program/year, add an operator-reviewed JSON array conforming to `server/degree/schema.ts` and configure `VT_DEGREE_PLANS_FILE` with its path. Each rule must cite an official HTTPS VT document and page, and every plan declares its unimplemented checks. Review course alternatives, grades, year labels, and option/concentration against the complete document before importing. A URL allowlist validates provenance format, not correctness; the operator must review the rules. Duplicate plans and rule IDs fail validation. Never bulk promote automatically extracted PDF text into verified degree rules.
+
+PDF links in the legacy directory are not parsed automatically.

@@ -15,6 +15,7 @@ export interface ScheduleEvent {
   semester?: string;
 }
 export interface Course {
+  degreeRequirements?: string[];
   id: string;
   name: string;
   credits: number;
@@ -35,6 +36,8 @@ export interface Course {
   restrictions?: string;
 }
 export interface Filters {
+  program?: string;
+  catalogYear?: string;
   semester: string;
   major: string;
   difficulty: string;
@@ -60,7 +63,13 @@ export type ScheduleOption = "A" | "B" | "best";
 
 export interface SourceCitation {
   id: string;
-  source: "vt-catalog" | "vt-timetable" | "ratemyprofessors" | "reddit";
+  source:
+    | "vt-requirements"
+    | "vt-department"
+    | "vt-catalog"
+    | "vt-timetable"
+    | "ratemyprofessors"
+    | "reddit";
   title: string;
   url: string;
   retrievedAt: string;

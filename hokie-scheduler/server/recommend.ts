@@ -26,6 +26,11 @@ export function eligible(
 ): boolean {
   const f = request.filters;
   const prompt = request.prompt.toLowerCase();
+  const explicitCourses = [
+    ...prompt.matchAll(/\b([a-z]{2,4})[ -]?(\d{4})\b/g),
+  ].map((m) => `${m[1].toUpperCase()} ${m[2]}`);
+  if (explicitCourses.length && !explicitCourses.includes(course.id))
+    return false;
   if (course.semester && course.semester !== f.semester) return false;
   if (request.events.some((e) => e.courseId === course.id)) return false;
   if (
@@ -78,15 +83,13 @@ export function eligible(
   ];
   for (let day = 0; day < 7; day++) {
     const name = days[day];
+    const negative = new RegExp(
+      `(?:no|not|avoid|free|without)\\s+(?:classes\\s+)?(?:on\\s+)?${name}s?\\b|${name}s?\\s+(?:off|free)\\b`,
+    ).test(prompt);
+    if (negative && course.meeting.days.includes(day)) return false;
     if (
-      new RegExp(
-        `(?:no|not on|avoid|free|without)\\s+(?:classes\\s+(?:on\\s+)?)?${name}`,
-      ).test(prompt) &&
-      course.meeting.days.includes(day)
-    )
-      return false;
-    if (
-      new RegExp(`(?:on|only)\\s+${name}`).test(prompt) &&
+      !negative &&
+      new RegExp(`(?:on|only)\\s+${name}s?\\b`).test(prompt) &&
       !course.meeting.days.includes(day)
     )
       return false;
@@ -96,14 +99,17 @@ export function eligible(
   const lower = prompt.match(
     /(?:after|not before|no classes before)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
   );
-  const upper = prompt.match(
-    /(?:before|end by|finish by)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
-  );
+  const upper = prompt
+    .replace(
+      /(?:not before|no classes before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/g,
+      "",
+    )
+    .match(/(?:before|end by|finish by)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/);
   if (lower) {
     const limit = parseTime(`${lower[1]}:${lower[2] ?? "00"}${lower[3]}`);
     if (limit !== null && course.meeting.start < limit) return false;
   }
-  if (upper && !lower) {
+  if (upper) {
     const limit = parseTime(`${upper[1]}:${upper[2] ?? "00"}${upper[3]}`);
     if (limit !== null && course.meeting.end > limit) return false;
   }
@@ -145,14 +151,26 @@ export async function recommend(
   deps: Dependencies,
 ): Promise<RecommendationResponse> {
   const subjects = subjectsFor(request);
-  const [tt, cat, reviews] = await Promise.all([
+  const [tt, cat, reviews, department, plans] = await Promise.all([
     deps.timetable({ subjects, semester: request.filters.semester }),
     deps.catalog(subjects),
     deps.reviews(),
+    deps.department?.(subjects) ?? Promise.resolve([]),
+    deps.degreePlans?.().catch(() => []) ?? Promise.resolve([]),
   ]);
+  const plan = plans.find(
+    (p) =>
+      p.program === request.filters.program &&
+      p.catalogYear === request.filters.catalogYear,
+  );
   const catalogById = new Map(cat.items.map((c) => [c.id, c]));
   const all = tt.items.map((c) => {
     const description = catalogById.get(c.id);
+    const info = department.find((d) => d.id === c.id);
+    const degreeRules =
+      plan?.rules.filter((r) =>
+        r.alternatives.some((a) => a.some((x) => x.courseId === c.id)),
+      ) ?? [];
     const review = reviews.items.find(
       (r) =>
         r.courseId === c.id &&
@@ -160,9 +178,21 @@ export async function recommend(
     );
     return {
       ...c,
+      degreeRequirements: degreeRules.map((r) => r.label),
+      name: description?.name ?? info?.name ?? c.name,
       description: description?.description,
       citations: [
         ...c.citations,
+        ...degreeRules.map((r) => ({
+          id: `degree-${plan!.id}-${r.id}`,
+          source: "vt-requirements" as const,
+          title: `${plan!.program} · ${plan!.catalogYear} · ${r.label}`,
+          url: `${r.source.url}#page=${r.source.page}`,
+          retrievedAt: plan!.reviewedAt,
+          excerpt: `${c.id} is listed as an option within ${r.label}. Minimum grade and any additional courses in the alternative must also be satisfied. ${r.source.note}`,
+          courseIds: [c.id],
+        })),
+        ...(info ? [info.citation] : []),
         ...(description?.citations ?? []),
         ...(review ? [review.citation] : []),
       ],
@@ -224,6 +254,10 @@ export async function recommend(
     "Each option fits independently; these are alternatives, not a guaranteed combined schedule.",
     "Meeting times were checked against your supplied events. Prerequisites, linked labs, major restrictions, and available seats still need confirmation.",
   ];
+  if (request.filters.program)
+    warnings.push(
+      `Degree context: ${request.filters.program}, ${request.filters.catalogYear ?? "catalog year not selected"}. ${plan ? "Matching courses have citations to reviewed requirement rules. Coverage is partial; use the degree checker for grades and alternatives." : "No reviewed requirement set matches this program/year; these are timetable matches only."}`,
+    );
   if (
     /easy|workload|difficulty|professor|rated/i.test(request.prompt) &&
     !unique.some((c) => c.rating !== null)
@@ -235,7 +269,7 @@ export async function recommend(
   let selected = unique.slice(0, 3).map((c) => ({
     ...c,
     tags: ["VT timetable", "No time overlap"],
-    reason: `${c.id} has a ${c.credits}-credit ${request.filters.semester} section with no overlap with your supplied commitments. ${c.rating !== null ? "Imported professor review evidence is available." : "Difficulty, workload, and professor quality are unverified."}`,
+    reason: `${c.degreeRequirements?.length ? `Listed in your ${plan!.catalogYear} rules for ${c.degreeRequirements.join(", ")}. This does not confirm prerequisites or completion. ` : ""}${c.id} has a ${c.credits}-credit ${request.filters.semester} section with no overlap with your supplied commitments. ${c.rating !== null ? "Imported professor review evidence is available." : "Difficulty, workload, and professor quality are unverified."}`,
   }));
   if (deps.rank && unique.length) {
     try {

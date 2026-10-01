@@ -1,6 +1,8 @@
 import { ExternalLink } from "lucide-react";
 import type { SourceCitation } from "../types";
 const labels = {
+  "vt-requirements": "VT Degree Requirements",
+  "vt-department": "VT Department",
   "vt-catalog": "VT Catalog",
   "vt-timetable": "VT Timetable",
   ratemyprofessors: "Rate My Professors",

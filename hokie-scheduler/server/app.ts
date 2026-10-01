@@ -1,4 +1,9 @@
+import { degreePlans } from "./degree/plans";
+import { audit } from "./degree/audit";
+import { auditRequestSchema } from "./degree/schema";
 import { redditConfigured } from "./providers/redditAuth";
+import { programs } from "./providers/programs";
+import { department } from "./providers/department";
 import express from "express";
 import type { Dependencies } from "./contracts";
 import { requestSchema } from "./contracts";
@@ -10,6 +15,8 @@ import { reddit } from "./providers/reddit";
 import { rank } from "./llm";
 export const defaultDependencies: Dependencies = {
   timetable,
+  degreePlans,
+  department,
   catalog,
   reviews,
   reddit,
@@ -45,6 +52,63 @@ export function createApp(deps: Dependencies = defaultDependencies) {
       },
     }),
   );
+  app.get("/api/degree-plans", async (_req, res) => {
+    try {
+      res.json({
+        plans: (await degreePlans()).map(
+          ({ id, program, catalogYear, coverage, rules }) => ({
+            id,
+            program,
+            catalogYear,
+            coverage,
+            ruleCount: rules.length,
+          }),
+        ),
+      });
+    } catch {
+      res.status(503).json({ error: "Degree rules could not be loaded." });
+    }
+  });
+  app.post("/api/degree-audit", async (req, res) => {
+    const parsed = auditRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({
+          error:
+            "Select an available plan/year and enter valid course IDs and grades.",
+        });
+      return;
+    }
+    try {
+      const plan = (await degreePlans()).find(
+        (p) =>
+          p.id === parsed.data.planId &&
+          p.catalogYear === parsed.data.catalogYear,
+      );
+      if (!plan) {
+        res
+          .status(404)
+          .json({
+            error:
+              "No reviewed rules are available for that plan and year. Another year's rules will not be substituted.",
+          });
+        return;
+      }
+      res.json(audit(plan, parsed.data.attempts));
+    } catch {
+      res.status(503).json({ error: "Degree checker unavailable." });
+    }
+  });
+  app.get("/api/programs", async (_req, res) => {
+    try {
+      res.json(await programs());
+    } catch {
+      res.status(503).json({
+        error: "VT major resources are unavailable. Try again later.",
+      });
+    }
+  });
   app.post("/api/recommendations", async (req, res) => {
     const parsed = requestSchema.safeParse(req.body);
     if (!parsed.success) {

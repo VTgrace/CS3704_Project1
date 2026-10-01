@@ -1,3 +1,4 @@
+import { MajorResources } from "./MajorResources";
 import {
   CalendarDays,
   GraduationCap,
@@ -111,6 +112,11 @@ export function FilterSidebar({
             </label>
           ))}
         </div>
+        <MajorResources
+          programName={filters.program}
+          catalogYear={filters.catalogYear}
+          onChange={onChange}
+        />
         <div className="tip-card">
           <Lightbulb size={23} />
           <div>

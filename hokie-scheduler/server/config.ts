@@ -1,5 +1,6 @@
 import "dotenv/config";
 export const config = {
+  degreePlansFile: process.env.VT_DEGREE_PLANS_FILE || "",
   port: Number(process.env.PORT || 3001),
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiModel: process.env.OPENAI_MODEL || "",

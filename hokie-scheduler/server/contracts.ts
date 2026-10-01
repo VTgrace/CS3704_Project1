@@ -1,3 +1,4 @@
+import type { DegreePlan } from "./degree/schema";
 import { z } from "zod";
 import type {
   Course,
@@ -47,6 +48,11 @@ export const eventSchema = z
   })
   .refine((e) => e.end > e.start, "End must be after start");
 export const filtersSchema = z.object({
+  program: z.string().max(300).optional(),
+  catalogYear: z
+    .string()
+    .regex(/^20\d{2}–20\d{2}$/)
+    .optional(),
   semester: z.string().regex(/^(Fall|Spring|Summer|Winter) 20\d{2}$/),
   major: z.enum([
     "Computer Science",
@@ -99,6 +105,10 @@ export interface ProviderContext {
   semester: string;
 }
 export interface Dependencies {
+  degreePlans?: () => Promise<DegreePlan[]>;
+  department?: (
+    subjects: string[],
+  ) => Promise<{ id: string; name: string; citation: SourceCitation }[]>;
   timetable: (
     context: ProviderContext,
   ) => Promise<ProviderResult<EvidenceCourse>>;

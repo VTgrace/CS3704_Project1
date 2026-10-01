@@ -213,3 +213,38 @@ test("API health, validation, bad JSON, successful recommendation and rate limit
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+test("negative weekday requests do not accidentally require that weekday", () => {
+  const friday = { ...c, meeting: { ...c.meeting, days: [5] } };
+  for (const prompt of [
+    "no classes on Friday",
+    "avoid Friday",
+    "Fridays off",
+  ]) {
+    assert.equal(eligible(c, { ...request, prompt, events: [] }), true);
+    assert.equal(eligible(friday, { ...request, prompt, events: [] }), false);
+  }
+});
+test("both time bounds and explicit course numbers are enforced", () => {
+  const req = { ...request, events: [] };
+  assert.equal(
+    eligible(c, { ...req, prompt: "CS3724 after 9am before 11am" }),
+    false,
+  );
+  assert.equal(
+    eligible(c, { ...req, prompt: "CS3724 not before 9am before 12pm" }),
+    true,
+  );
+  assert.equal(eligible(c, { ...req, prompt: "CS 3114" }), false);
+});
+
+test("requirement citations require an exact program/year match", async () => {
+  const { cs2023 } = await import("../degree/plans");
+  const course = { ...c, id: "CS 4104", name: "Data and Algorithm Analysis" };
+  const providers = { ...deps, degreePlans: async () => [cs2023], timetable: async () => ({ items: [course], status: { source: "vt-timetable" as const, state: "ready" as const, detail: "test" } }) };
+  const req = { ...request, events: [], filters: { ...defaultFilters, program: cs2023.program, catalogYear: cs2023.catalogYear } };
+  const matched = await recommend(req, providers);
+  assert.ok(matched.courses[0].citations?.some((s) => s.source === "vt-requirements"));
+  const wrongYear = await recommend({ ...req, filters: { ...req.filters, catalogYear: "2025–2026" } }, providers);
+  assert.equal(wrongYear.courses[0].citations?.some((s) => s.source === "vt-requirements"), false);
+});
