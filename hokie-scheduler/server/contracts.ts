@@ -105,6 +105,7 @@ export interface ProviderContext {
   semester: string;
 }
 export interface Dependencies {
+  provider?: "gemini" | "openai";
   degreePlans?: () => Promise<DegreePlan[]>;
   department?: (
     subjects: string[],

@@ -148,3 +148,25 @@ The initial reviewed dataset is **Computer Science, 2023–2024: 25 rules** from
 To extend any program/year, add an operator-reviewed JSON array conforming to `server/degree/schema.ts` and configure `VT_DEGREE_PLANS_FILE` with its path. Each rule must cite an official HTTPS VT document and page, and every plan declares its unimplemented checks. Review course alternatives, grades, year labels, and option/concentration against the complete document before importing. A URL allowlist validates provenance format, not correctness; the operator must review the rules. Duplicate plans and rule IDs fail validation. Never bulk promote automatically extracted PDF text into verified degree rules.
 
 PDF links in the legacy directory are not parsed automatically.
+
+### Gemini chatbot provider
+
+The existing course recommendation chat can now use Google's Gemini GenerateContent API with structured JSON output. No browser key or extra SDK is required. In your private `hokie-scheduler/.env`, set:
+
+```dotenv
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=your_available_text_model_id
+```
+
+Create a key in https://aistudio.google.com/apikey and choose a model available to that account with structured-output support. Restart `npm run dev` after changing `.env`. `npm run doctor` checks model access without generating content. `/api/health` reports the selected provider but never the key. Do not use a `VITE_` prefix for secrets.
+
+`auto` prefers fully configured Gemini, then OpenAI. Explicit `gemini`/`openai` selections never switch providers on an error. Gemini receives the user's prompt/history, filters, anonymous busy times, and retrieved candidate evidence; personal event titles/notes and degree-checker grades are excluded. The chat still only recommends retrieved eligible courses, and existing server validation rejects invented course/section/citation IDs. Missing keys, blocked/truncated answers, timeouts and provider failures fall back to deterministic matches. This adds Gemini to course-recommendation chat, not an unrestricted general-purpose chatbot.
+
+### Verified prototype behavior
+
+The response includes `provider: "gemini"` or `"openai"` only when AI ranking succeeded. The chat shows that provider name next to the answer. Gemini retries a temporary 502/503/504 once within a shared 35-second deadline; quota, credential, connection and model-access failures have distinct user-facing messages. Errors never include raw provider response bodies. No automatic fallback to a different AI vendor occurs.
+
+Common department names such as `psych`, `psychology`, `computer science` and compact codes such as `CS3724` select the intended subject. Explicit subject requests cannot fall back to unrelated departments. “Only on Friday” rejects sections that also meet on other days. An AI answer with no recommendations is described as insufficient matching evidence rather than a timetable outage.
+
+Live integrations requiring unavailable credentials or inaccessible sources are skipped with status information. The prototype does not assert live Reddit/RMP access, complete catalog coverage, all-major degree audits, or verified seat/prerequisite eligibility. Comparison presets and initial calendar events remain demo data. Each teammate must configure their own private `.env`; keys are never included in the repository.

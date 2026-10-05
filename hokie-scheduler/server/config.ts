@@ -2,6 +2,9 @@ import "dotenv/config";
 export const config = {
   degreePlansFile: process.env.VT_DEGREE_PLANS_FILE || "",
   port: Number(process.env.PORT || 3001),
+  llmProvider: process.env.LLM_PROVIDER || "auto",
+  geminiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "",
   openaiKey: process.env.OPENAI_API_KEY || "",
   openaiModel: process.env.OPENAI_MODEL || "",
   redditToken: process.env.REDDIT_ACCESS_TOKEN || "",

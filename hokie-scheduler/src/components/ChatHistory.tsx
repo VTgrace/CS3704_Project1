@@ -10,7 +10,7 @@ export function ChatHistory({ turns }: { turns: ChatTurn[] }) {
           <div className="chat-answer">
             <span className="response-mode">
               {turn.response.mode === "llm"
-                ? "AI · cited evidence"
+                ? `${turn.response.provider === "gemini" ? "Gemini" : turn.response.provider === "openai" ? "OpenAI" : "AI"} · cited evidence`
                 : "Timetable matches · AI not used"}
             </span>
             <p>{turn.response.explanation}</p>

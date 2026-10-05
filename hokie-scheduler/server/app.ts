@@ -12,7 +12,7 @@ import { config } from "./config";
 import { timetable, catalog } from "./providers/vt";
 import { reviews } from "./providers/reviews";
 import { reddit } from "./providers/reddit";
-import { rank } from "./llm";
+import { activeProvider, activeRanker } from "./llmProvider";
 export const defaultDependencies: Dependencies = {
   timetable,
   degreePlans,
@@ -20,7 +20,9 @@ export const defaultDependencies: Dependencies = {
   catalog,
   reviews,
   reddit,
-  ...(config.openaiKey && config.openaiModel ? { rank } : {}),
+  ...(activeRanker && activeProvider
+    ? { rank: activeRanker, provider: activeProvider }
+    : {}),
 };
 export function createApp(deps: Dependencies = defaultDependencies) {
   const app = express();
@@ -44,6 +46,12 @@ export function createApp(deps: Dependencies = defaultDependencies) {
     res.json({
       ok: true,
       llmConfigured: !!deps.rank,
+      llmProvider:
+        deps.rank === activeRanker
+          ? activeProvider
+          : deps.rank
+            ? "custom"
+            : null,
       providers: {
         timetable: true,
         catalog: true,
@@ -72,12 +80,10 @@ export function createApp(deps: Dependencies = defaultDependencies) {
   app.post("/api/degree-audit", async (req, res) => {
     const parsed = auditRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Select an available plan/year and enter valid course IDs and grades.",
-        });
+      res.status(400).json({
+        error:
+          "Select an available plan/year and enter valid course IDs and grades.",
+      });
       return;
     }
     try {
@@ -87,12 +93,10 @@ export function createApp(deps: Dependencies = defaultDependencies) {
           p.catalogYear === parsed.data.catalogYear,
       );
       if (!plan) {
-        res
-          .status(404)
-          .json({
-            error:
-              "No reviewed rules are available for that plan and year. Another year's rules will not be substituted.",
-          });
+        res.status(404).json({
+          error:
+            "No reviewed rules are available for that plan and year. Another year's rules will not be substituted.",
+        });
         return;
       }
       res.json(audit(plan, parsed.data.attempts));

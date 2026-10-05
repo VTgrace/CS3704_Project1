@@ -241,10 +241,68 @@ test("both time bounds and explicit course numbers are enforced", () => {
 test("requirement citations require an exact program/year match", async () => {
   const { cs2023 } = await import("../degree/plans");
   const course = { ...c, id: "CS 4104", name: "Data and Algorithm Analysis" };
-  const providers = { ...deps, degreePlans: async () => [cs2023], timetable: async () => ({ items: [course], status: { source: "vt-timetable" as const, state: "ready" as const, detail: "test" } }) };
-  const req = { ...request, events: [], filters: { ...defaultFilters, program: cs2023.program, catalogYear: cs2023.catalogYear } };
+  const providers = {
+    ...deps,
+    degreePlans: async () => [cs2023],
+    timetable: async () => ({
+      items: [course],
+      status: {
+        source: "vt-timetable" as const,
+        state: "ready" as const,
+        detail: "test",
+      },
+    }),
+  };
+  const req = {
+    ...request,
+    events: [],
+    filters: {
+      ...defaultFilters,
+      program: cs2023.program,
+      catalogYear: cs2023.catalogYear,
+    },
+  };
   const matched = await recommend(req, providers);
-  assert.ok(matched.courses[0].citations?.some((s) => s.source === "vt-requirements"));
-  const wrongYear = await recommend({ ...req, filters: { ...req.filters, catalogYear: "2025–2026" } }, providers);
-  assert.equal(wrongYear.courses[0].citations?.some((s) => s.source === "vt-requirements"), false);
+  assert.ok(
+    matched.courses[0].citations?.some((s) => s.source === "vt-requirements"),
+  );
+  const wrongYear = await recommend(
+    { ...req, filters: { ...req.filters, catalogYear: "2025–2026" } },
+    providers,
+  );
+  assert.equal(
+    wrongYear.courses[0].citations?.some((s) => s.source === "vt-requirements"),
+    false,
+  );
+});
+
+test("department aliases and compact course codes restrict candidates to the requested subject", async () => {
+  const { subjectsFor } = await import("../recommend");
+  for (const prompt of ["easy psych elective", "psychology courses"]) {
+    assert.deepEqual(subjectsFor({ ...request, prompt }), ["PSYC"]);
+    assert.equal(eligible(c, { ...request, prompt, events: [] }), false);
+    assert.equal(
+      eligible(
+        { ...c, id: "PSYC 2004", major: "General Education" },
+        { ...request, prompt, events: [] },
+      ),
+      true,
+    );
+  }
+  assert.deepEqual(subjectsFor({ ...request, prompt: "CS3724" }), ["CS"]);
+  assert.deepEqual(
+    subjectsFor({ ...request, prompt: "computer science electives" }),
+    ["CS"],
+  );
+});
+test("only Friday excludes sections that also meet other weekdays", () => {
+  const req = { ...request, prompt: "classes only on Friday", events: [] };
+  assert.equal(
+    eligible({ ...c, meeting: { ...c.meeting, days: [1, 3, 5] } }, req),
+    false,
+  );
+  assert.equal(
+    eligible({ ...c, meeting: { ...c.meeting, days: [5] } }, req),
+    true,
+  );
 });

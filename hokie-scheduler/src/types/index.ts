@@ -53,6 +53,7 @@ export interface RecommendationRequest {
   history?: { role: "user" | "assistant"; content: string }[];
 }
 export interface RecommendationResponse {
+  provider?: "gemini" | "openai";
   courses: Course[];
   explanation: string;
   mode?: "llm" | "retrieval";

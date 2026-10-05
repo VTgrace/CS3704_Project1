@@ -1,16 +1,15 @@
+import { LlmServiceError } from "./llmError";
 import { conflicts } from "../src/services/scheduler";
 import type {
   RecommendationRequest,
   RecommendationResponse,
 } from "../src/types/index";
 import type { Dependencies, EvidenceCourse, RankedCourse } from "./contracts";
-import { SUBJECTS } from "./contracts";
+import { requestedSubjects } from "./intent";
 import { parseTime } from "./providers/vt";
 export function subjectsFor(request: RecommendationRequest): string[] {
   const prompt = request.prompt.toUpperCase();
-  const explicit = SUBJECTS.filter((s) =>
-    new RegExp(`\\b${s}\\b`).test(prompt),
-  );
+  const explicit = requestedSubjects(prompt);
   if (explicit.length) return explicit.slice(0, 3);
   if (/GEN ED|GENERAL EDUCATION|PATHWAYS/.test(prompt))
     return ["ENGL", "ART", "PSYC"];
@@ -26,13 +25,22 @@ export function eligible(
 ): boolean {
   const f = request.filters;
   const prompt = request.prompt.toLowerCase();
+  const subjects = requestedSubjects(prompt);
+  if (subjects.length && !subjects.includes(course.id.split(" ")[0]))
+    return false;
   const explicitCourses = [
     ...prompt.matchAll(/\b([a-z]{2,4})[ -]?(\d{4})\b/g),
   ].map((m) => `${m[1].toUpperCase()} ${m[2]}`);
   if (explicitCourses.length && !explicitCourses.includes(course.id))
     return false;
   if (course.semester && course.semester !== f.semester) return false;
-  if (request.events.some((e) => e.courseId === course.id)) return false;
+  if (
+    request.events.some(
+      (e) =>
+        e.courseId === course.id && (!e.semester || e.semester === f.semester),
+    )
+  )
+    return false;
   if (
     f.major !== "Any" &&
     course.major !== f.major &&
@@ -81,6 +89,16 @@ export function eligible(
     "friday",
     "saturday",
   ];
+  const onlyDays = prompt.match(
+    /\bonly\s+(?:on\s+)?((?:(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?(?:\s*(?:,|and|or|\/)\s*)?)+)/,
+  );
+  if (
+    onlyDays &&
+    course.meeting.days.some(
+      (day) => !new RegExp(`\\b${days[day]}s?\\b`).test(onlyDays[1]),
+    )
+  )
+    return false;
   for (let day = 0; day < 7; day++) {
     const name = days[day];
     const negative = new RegExp(
@@ -275,9 +293,11 @@ export async function recommend(
     try {
       selected = validateRanking(await deps.rank(request, unique), unique);
       mode = "llm";
-    } catch {
+    } catch (error) {
       warnings.push(
-        "The LLM was unavailable or returned an unverifiable answer. Showing deterministic timetable matches instead.",
+        error instanceof LlmServiceError
+          ? `${error.message} Showing source-based timetable matches; AI was not used for this answer.`
+          : "The LLM was unavailable or returned an unverifiable answer. Showing deterministic timetable matches instead.",
       );
     }
   }
@@ -293,8 +313,11 @@ export async function recommend(
     courses: selected,
     explanation: selected.length
       ? `${selected.length} source-backed ${selected.length === 1 ? "option" : "options"} for ${request.filters.semester}. ${mode === "llm" ? "Ranked by the LLM using the cited evidence." : "Matched by the backend; review the citations and section restrictions."}`
-      : "No verified sections match the current request and filters. Check source availability, choose a published term, or broaden the filters.",
+      : mode === "llm"
+        ? "The AI could not recommend a course from the retrieved evidence for your request. Try relaxing a preference; missing review evidence cannot establish that a course is easy."
+        : "No verified sections match the current request and filters. Check source availability, choose a published term, or broaden the filters.",
     mode,
+    provider: mode === "llm" ? deps.provider : undefined,
     sources: statuses,
     warnings,
   };
